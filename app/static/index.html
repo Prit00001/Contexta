@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>shhhhh- · Semantic Search</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#0a0a0f;--surface:#111118;--border:#1e1e2e;--accent:#e8c547;--accent2:#5be7c4;--text:#e8e6e0;--muted:#6b6a72;--local:#5be7c4;--arxiv:#e87c5b;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(232,197,71,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(232,197,71,.03) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0;}
+.container{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:60px 24px 100px;}
+
+/* header */
+header{margin-bottom:56px;animation:fadeDown .6s ease both;}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.eyebrow::before{content:'';width:32px;height:1px;background:var(--accent);}
+h1{font-family:'Playfair Display',serif;font-size:clamp(2.4rem,5vw,3.6rem);font-weight:400;line-height:1.1;letter-spacing:-.02em;}
+h1 em{font-style:italic;color:var(--accent);}
+.subtitle{margin-top:14px;font-size:14px;color:var(--muted);line-height:1.6;max-width:540px;}
+.status-bar{display:flex;align-items:center;gap:10px;margin-top:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:pulse 2s ease infinite;flex-shrink:0;}
+.dot.online{background:var(--accent2);}
+.dot.error{background:#e85b5b;}
+
+/* model pill */
+.model-pill{display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:rgba(232,197,71,.08);border:1px solid rgba(232,197,71,.2);border-radius:20px;padding:3px 10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:.05em;}
+
+/* search */
+.search-section{margin-bottom:48px;animation:fadeDown .6s .1s ease both;}
+.search-wrapper{position:relative;border:1px solid var(--border);border-radius:6px;background:var(--surface);transition:border-color .2s;}
+.search-wrapper:focus-within{border-color:var(--accent);}
+textarea{width:100%;background:transparent;border:none;outline:none;color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:16px;font-weight:300;line-height:1.6;padding:20px 24px 60px;resize:none;min-height:110px;}
+textarea::placeholder{color:var(--muted);}
+.search-footer{position:absolute;bottom:0;left:0;right:0;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);}
+.options{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+
+/* toggle */
+.toggle-label{display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;transition:color .2s;}
+.toggle-label:hover{color:var(--text);}
+.toggle-label input{display:none;}
+.toggle-box{width:28px;height:16px;border-radius:8px;border:1px solid var(--border);background:var(--bg);position:relative;transition:background .2s,border-color .2s;}
+.toggle-box::after{content:'';position:absolute;width:10px;height:10px;border-radius:50%;background:var(--muted);top:2px;left:2px;transition:transform .2s,background .2s;}
+.toggle-label input:checked+.toggle-box{background:rgba(232,197,71,.15);border-color:var(--accent);}
+.toggle-label input:checked+.toggle-box::after{transform:translateX(12px);background:var(--accent);}
+
+.top-k-wrapper{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+select{background:transparent;border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 6px;border-radius:2px;outline:none;cursor:pointer;}
+select option{background:var(--surface);}
+
+#askBtn{background:var(--accent);color:#0a0a0f;border:none;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:8px 22px;border-radius:3px;cursor:pointer;transition:opacity .2s,transform .1s;}
+#askBtn:hover{opacity:.85;}
+#askBtn:active{transform:scale(.97);}
+#askBtn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* loading */
+.loading{display:none;align-items:center;gap:12px;padding:24px 0;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
+.loading.active{display:flex;}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+
+/* results */
+#results{animation:fadeIn .4s ease;}
+.result-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.result-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
+.source-count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent2);}
+
+.answer-block{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:28px 32px;margin-bottom:36px;line-height:1.85;font-size:15px;}
+.answer-block p{margin-bottom:12px;}
+.answer-block p:last-child{margin-bottom:0;}
+.answer-block strong{color:var(--accent);font-weight:500;}
+.answer-block em{font-style:italic;opacity:.85;}
+.answer-block code{font-family:'IBM Plex Mono',monospace;font-size:13px;background:rgba(232,197,71,.08);padding:1px 5px;border-radius:2px;color:var(--accent);}
+
+/* model badge inside answer */
+.answer-model{display:inline-flex;align-items:center;gap:5px;margin-bottom:16px;background:rgba(91,231,196,.07);border:1px solid rgba(91,231,196,.2);border-radius:20px;padding:3px 10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent2);}
+
+.sources-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.sources-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+
+.source-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px 18px;transition:border-color .2s,transform .15s;}
+.source-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.source-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.source-badge{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;padding:2px 7px;border-radius:2px;font-weight:500;}
+.source-badge.local{background:rgba(91,231,196,.12);color:var(--local);border:1px solid rgba(91,231,196,.25);}
+.source-badge.arxiv{background:rgba(232,124,91,.12);color:var(--arxiv);border:1px solid rgba(232,124,91,.25);}
+.score-bar{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);}
+.score-track{width:48px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.score-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .6s ease;}
+.source-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:400;color:var(--text);margin-bottom:6px;line-height:1.3;}
+.source-snippet{font-size:12px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.source-link{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent2);text-decoration:none;letter-spacing:.05em;}
+.source-link:hover{text-decoration:underline;}
+
+.error-block{background:rgba(232,91,91,.08);border:1px solid rgba(232,91,91,.25);border-radius:6px;padding:20px 24px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:#e85b5b;}
+
+@keyframes fadeDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn  {from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)}}
+@keyframes spin    {to{transform:rotate(360deg)}}
+@keyframes pulse   {0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="eyebrow">shhhhh- · Semantic Search</div>
+  <h1>Ask anything.<br><em>Find meaning.</em></h1>
+  <p class="subtitle">FAISS · sentence-transformers · arXiv · OpenRouter — semantic retrieval with LLaMA-3 grounded answers and cited sources.</p>
+  <div class="status-bar">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText">checking server…</span>
+  </div>
+  <div class="model-pill" id="modelPill" style="display:none">⚡ <span id="modelName"></span></div>
+</header>
+
+<div class="search-section">
+  <div class="search-wrapper">
+    <textarea id="questionInput" rows="3"
+      placeholder="e.g. How does retrieval-augmented generation work?"></textarea>
+    <div class="search-footer">
+      <div class="options">
+        <label class="toggle-label">
+          <input type="checkbox" id="useArxiv" checked/>
+          <span class="toggle-box"></span>
+          arXiv live papers
+        </label>
+        <div class="top-k-wrapper">
+          <span>top</span>
+          <select id="topK">
+            <option>3</option><option selected>5</option>
+            <option>8</option><option>10</option>
+          </select>
+          <span>docs</span>
+        </div>
+      </div>
+      <button id="askBtn">Ask →</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <span id="loadingText">Embedding query…</span>
+</div>
+<div id="results"></div>
+
+</div>
+<script>
+/* ── health ── */
+async function checkHealth(){
+  try{
+    const d=await(await fetch('/health')).json();
+    document.getElementById('statusDot').classList.add('online');
+    document.getElementById('statusText').textContent=
+      `online · ${d.index_size} docs · ${d.model}`;
+    const pill=document.getElementById('modelPill');
+    document.getElementById('modelName').textContent=d.llm;
+    pill.style.display='inline-flex';
+  }catch{
+    document.getElementById('statusDot').classList.add('error');
+    document.getElementById('statusText').textContent='server offline — start uvicorn';
+  }
+}
+
+/* ── markdown ── */
+function md(t){
+  return t
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n\n+/g,'</p><p>')
+    .replace(/\n/g,'<br>');
+}
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── ask ── */
+async function ask(){
+  const q=document.getElementById('questionInput').value.trim();
+  if(!q)return;
+  const btn=document.getElementById('askBtn');
+  const loading=document.getElementById('loading');
+  const results=document.getElementById('results');
+  const ltxt=document.getElementById('loadingText');
+  btn.disabled=true; results.innerHTML=''; loading.classList.add('active');
+  const steps=['Embedding query…','Searching FAISS…','Fetching arXiv papers…','Calling LLaMA-3 via OpenRouter…'];
+  let s=0;
+  const iv=setInterval(()=>{ltxt.textContent=steps[Math.min(s++,steps.length-1)];},900);
+  try{
+    const res=await fetch('/ask',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        question:q,
+        top_k:parseInt(document.getElementById('topK').value),
+        use_arxiv:document.getElementById('useArxiv').checked,
+      })
+    });
+    if(!res.ok){const e=await res.json().catch(()=>({detail:`HTTP ${res.status}`}));throw new Error(e.detail||`HTTP ${res.status}`);}
+    render(await res.json());
+  }catch(err){
+    results.innerHTML=`<div class="error-block">⚠ ${esc(err.message)}</div>`;
+  }finally{
+    clearInterval(iv);loading.classList.remove('active');btn.disabled=false;
+  }
+}
+
+/* ── render ── */
+function render(data){
+  const results=document.getElementById('results');
+  const answerHtml=(data.answer&&data.answer.trim())
+    ?md(data.answer)
+    :'<em>No AI answer — check your OPENROUTER_API_KEY in .env</em>';
+  const model=esc(data.model_used||'');
+  const cards=(data.sources||[]).map(s=>{
+    const pct=Math.min(100,Math.round(s.score*100));
+    const badge=s.source==='arxiv'?'arxiv':'local';
+    const link=s.url?`<a class="source-link" href="${esc(s.url)}" target="_blank" rel="noopener">↗ view source</a>`:'';
+    return`<div class="source-card">
+      <div class="source-card-top">
+        <span class="source-badge ${badge}">${esc(s.source)}</span>
+        <div class="score-bar"><div class="score-track"><div class="score-fill" style="width:${pct}%"></div></div><span>${pct}%</span></div>
+      </div>
+      <div class="source-title">${esc(s.title)}</div>
+      <div class="source-snippet">${esc(s.content)}</div>
+      ${link}
+    </div>`;
+  }).join('');
+
+  results.innerHTML=`
+    <div class="result-header">
+      <span class="result-label">Answer</span>
+      <span class="source-count">${data.total_sources||0} sources</span>
+    </div>
+    <div class="answer-block">
+      ${model?`<div class="answer-model">⚡ ${model}</div>`:''}
+      <p>${answerHtml}</p>
+    </div>
+    <div class="sources-label">Sources</div>
+    <div class="sources-grid">${cards}</div>`;
+}
+
+document.getElementById('askBtn').addEventListener('click',ask);
+document.getElementById('questionInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&(e.ctrlKey||e.metaKey))ask();
+});
+checkHealth();
+</script>
+</body>
+</html>
