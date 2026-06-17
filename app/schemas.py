@@ -11,10 +11,10 @@ from pydantic import BaseModel, Field
 # ── Inbound ───────────────────────────────────────────────────────────
 
 class AskRequest(BaseModel):
-    question: str  = Field(..., min_length=3, max_length=1000,
-                           description="Natural-language question from the user")
-    top_k:    int  = Field(5,  ge=1, le=20,
-                           description="Number of documents to retrieve from FAISS")
+    question:  str  = Field(..., min_length=3, max_length=1000,
+                            description="Natural-language question from the user")
+    top_k:     int  = Field(5, ge=1, le=20,
+                            description="Number of documents to retrieve from FAISS")
     use_arxiv: bool = Field(True,
                             description="Augment local results with live arXiv papers")
 
@@ -31,6 +31,8 @@ class SourceDocument(BaseModel):
 
 
 class AskResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}  # ← fixes Pydantic warning
+
     question:      str
     answer:        str
     sources:       List[SourceDocument]
@@ -42,4 +44,4 @@ class HealthResponse(BaseModel):
     status:     str
     index_size: int
     model:      str         # embedding model
-    llm:        str         # LLM / OpenRouter model
+    llm:        str# LLM / OpenRouter model
