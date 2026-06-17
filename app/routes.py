@@ -5,10 +5,10 @@ GET  /health → liveness + model info
 """
 from __future__ import annotations
 import logging
+import os
 from fastapi import APIRouter, HTTPException
 from app.schemas import AskRequest, AskResponse, HealthResponse
 from core.embeddings import EMBEDDING_MODEL
-from core.generator import OPENROUTER_MODEL
 from services.search_service import search_service
 
 logger = logging.getLogger(__name__)
@@ -37,5 +37,5 @@ async def health() -> HealthResponse:
         status     = "ok",
         index_size = search_service.index_size,
         model      = EMBEDDING_MODEL,
-        llm        = OPENROUTER_MODEL,
+        llm        = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3-8b-instruct:free"),
     )
