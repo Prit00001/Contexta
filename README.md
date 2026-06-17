@@ -1,48 +1,93 @@
-# Contexta
+<div align="center">
 
-> Semantic search with grounded AI answers — FAISS · sentence-transformers · arXiv · OpenRouter
+# Contexta 🔍
 
-Contexta is a RAG (Retrieval-Augmented Generation) search engine. You ask a question in plain English, it semantically retrieves the most relevant documents from a local knowledge base and live arXiv papers, then passes them to an LLM to generate a grounded, cited answer.
+**Semantic search with grounded AI answers**
+
+`FAISS` · `Sentence Transformers` · `arXiv` · `FastAPI` · `OpenRouter`
+
+> ⚠️ **Deployment Notice** — See the [Known Limitations](#known-limitations) section before trying the live demo.
+
+</div>
 
 ---
 
-## How it works
+## What is Contexta?
+
+Contexta is a **RAG (Retrieval-Augmented Generation)** search engine built for research. Ask a question in plain English — it semantically retrieves the most relevant documents from a local knowledge base and live arXiv papers, then passes them to an LLM to generate a grounded, cited answer.
+
+No hallucinations. Every answer is backed by real sources.
+
+---
+
+## How It Works
 
 ```
-Question
-   │
-   ▼
-Embed (all-MiniLM-L6-v2)
-   │
-   ├──▶ FAISS local index ──────────────┐
-   │                                    │
-   └──▶ arXiv live search → embed ──────┤
-                                        │
-                                   Merge + re-rank
-                                        │
-                                        ▼
-                               OpenRouter (LLaMA-3)
-                                        │
-                                        ▼
-                            Grounded answer + sources
+Your Question
+      │
+      ▼
+  Embed (all-MiniLM-L6-v2)
+      │
+      ├──▶ FAISS local index ──────────┐
+      │                                │
+      └──▶ arXiv live search ──────────┤
+                                       │
+                                  Merge + Re-rank
+                                       │
+                                       ▼
+                              OpenRouter → LLaMA-3
+                                       │
+                                       ▼
+                          Grounded answer + cited sources
 ```
 
 ---
 
-## Stack
+## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| API | FastAPI + uvicorn |
-| Embeddings | `all-MiniLM-L6-v2` (sentence-transformers) |
-| Vector store | FAISS `IndexFlatIP` (exact cosine search) |
-| Live papers | arXiv API |
-| LLM | OpenRouter → LLaMA-3-8B (free tier) |
-| Frontend | Vanilla HTML/CSS/JS (served at `/`) |
+| Layer        | Technology                                   |
+|--------------|----------------------------------------------|
+| API          | FastAPI + uvicorn                            |
+| Embeddings   | `all-MiniLM-L6-v2` (sentence-transformers)   |
+| Vector Store | FAISS `IndexFlatIP` (exact cosine search)    |
+| Live Papers  | arXiv API                                    |
+| LLM          | OpenRouter → LLaMA-3-8B (free tier)          |
+| Frontend     | Vanilla HTML/CSS/JS                          |
 
 ---
 
-## Quickstart
+## ⚠️ Known Limitations
+
+### Deployment Status
+
+**Contexta is fully functional locally. The live deployed version has a known issue.**
+
+The app is deployed on Render, but the **AI answer generation is currently broken in the deployed environment** due to OpenRouter's free-tier API restrictions:
+
+- Free-tier models on OpenRouter often get **rate-limited or blocked** when requests come from cloud server IPs (Render, Railway, Heroku, etc.)
+- This means the retrieval pipeline works fine, but the final LLM answer generation fails in production
+- Switching to a **paid OpenRouter model** would fix this immediately
+
+### Why Not Ollama?
+
+An alternative was considered — running a local model via **Ollama** instead of the OpenRouter API. This works perfectly on a local machine, but has an obvious catch:
+
+> If the laptop running Ollama is turned off, the entire deployed app stops working.
+
+That's not a real deployment. So Ollama is not used in the hosted version.
+
+### What Works Right Now
+
+| Feature | Local | Deployed |
+|---------|-------|----------|
+| Semantic search (FAISS) | ✅ | ✅ |
+| arXiv live paper fetch | ✅ | ✅ |
+| AI answer generation | ✅ | ❌ (API limit) |
+| Source citations | ✅ | ✅ |
+
+---
+
+## Run It Locally (Fully Works)
 
 ### 1. Clone and install
 
@@ -60,51 +105,25 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Open `.env` and add your OpenRouter key:
+Add your OpenRouter key to `.env`:
 
 ```
 OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
-Get a free key at [openrouter.ai](https://openrouter.ai) — no credit card needed for free-tier models.
+Get a free key at [openrouter.ai](https://openrouter.ai) — no credit card needed.
 
-### 3. Run
+### 3. Start the server
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000) — you should see the search UI.
+Open [http://localhost:8000](http://localhost:8000) — the search UI will be running.
 
 ---
 
-## Project structure
-
-```
-Contexta/
-├── app/
-│   ├── main.py          # FastAPI app, lifespan, static serving
-│   ├── routes.py        # POST /ask, GET /health
-│   ├── schemas.py       # Pydantic request/response models
-│   └── static/
-│       └── index.html   # Frontend UI
-├── core/
-│   ├── embeddings.py    # sentence-transformers wrapper (lazy load + L2 norm)
-│   ├── vector_store.py  # FAISS IndexFlatIP wrapper
-│   ├── retriever.py     # query → embedding → FAISS → SourceDocuments
-│   └── generator.py     # OpenRouter async LLM call + RAG prompt builder
-├── services/
-│   ├── search_service.py  # orchestrates the full pipeline
-│   └── arxiv_client.py    # async arXiv fetch + XML parse
-├── data/
-│   └── documents.py       # 12 local ML/NLP documents (knowledge base)
-├── .env.example
-└── requirements.txt
-```
-
----
-
-## API
+## API Reference
 
 ### `POST /ask`
 
@@ -117,7 +136,6 @@ Contexta/
 ```
 
 **Response:**
-
 ```json
 {
   "question": "...",
@@ -148,13 +166,39 @@ Contexta/
 }
 ```
 
-Interactive docs available at [/docs](http://localhost:8000/docs).
+Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## Extending the knowledge base
+## Project Structure
 
-Add documents to `data/documents.py` — they are embedded and indexed automatically on startup:
+```
+Contexta/
+├── app/
+│   ├── main.py          # FastAPI app, lifespan, static serving
+│   ├── routes.py        # POST /ask, GET /health
+│   ├── schemas.py       # Pydantic request/response models
+│   └── static/
+│       └── index.html   # Frontend UI
+├── core/
+│   ├── embeddings.py    # sentence-transformers wrapper
+│   ├── vector_store.py  # FAISS IndexFlatIP wrapper
+│   ├── retriever.py     # query → embedding → FAISS → sources
+│   └── generator.py     # OpenRouter LLM call + RAG prompt
+├── services/
+│   ├── search_service.py  # full pipeline orchestration
+│   └── arxiv_client.py    # async arXiv fetch + XML parse
+├── data/
+│   └── documents.py       # local knowledge base (12 ML/NLP docs)
+├── .env.example
+└── requirements.txt
+```
+
+---
+
+## Extending the Knowledge Base
+
+Add entries to `data/documents.py` — they are embedded and indexed automatically on startup:
 
 ```python
 {
@@ -162,51 +206,32 @@ Add documents to `data/documents.py` — they are embedded and indexed automatic
     "source":  "local",
     "title":   "Your Document Title",
     "url":     "https://source-url.com",
-    "content": "The text content to embed and retrieve...",
-},
+    "content": "Text content to embed and retrieve...",
+}
 ```
 
 ---
 
-## Deployment
+## Environment Variables
 
-### Render / Railway / Heroku
-
-1. Add a `Procfile` to the repo root:
-
-```
-web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-2. Set environment variables in your platform dashboard:
-
-```
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=meta-llama/llama-3-8b-instruct:free
-```
-
-3. For free-tier platforms, use CPU-only PyTorch to reduce build size. In `requirements.txt`:
-
-```
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.3.0+cpu
-```
-
-> **Never commit your `.env` file.** It is gitignored by default. Always set secrets through your platform's environment variable dashboard.
+| Variable             | Required | Default                               | Description                          |
+|----------------------|----------|---------------------------------------|--------------------------------------|
+| `OPENROUTER_API_KEY` | Yes      | —                                     | Your OpenRouter API key              |
+| `OPENROUTER_MODEL`   | No       | `meta-llama/llama-3-8b-instruct:free` | Any model on openrouter.ai/models    |
+| `APP_SITE_URL`       | No       | `http://localhost:8000`               | Shown in OpenRouter dashboard        |
+| `APP_SITE_NAME`      | No       | `contexta`                            | Shown in OpenRouter dashboard        |
 
 ---
 
-## Environment variables
+## Roadmap
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `OPENROUTER_API_KEY` | Yes | — | Your OpenRouter API key |
-| `OPENROUTER_MODEL` | No | `meta-llama/llama-3-8b-instruct:free` | Any model from [openrouter.ai/models](https://openrouter.ai/models) |
-| `APP_SITE_URL` | No | `http://localhost:8000` | Shown in OpenRouter dashboard |
-| `APP_SITE_NAME` | No | `shhhhh-semantic-search` | Shown in OpenRouter dashboard |
+- [ ] Fix production deployment — switch to a paid OpenRouter model or find a free-tier alternative that works from server IPs
+- [ ] Add support for user-uploaded PDFs to the knowledge base
+- [ ] Persistent vector store (save/load FAISS index)
+- [ ] Chat history / multi-turn conversations
 
 ---
 
 ## License
 
-MIT
+MIT — built by [Pratyush Pandey](https://github.com/Prit00001)
