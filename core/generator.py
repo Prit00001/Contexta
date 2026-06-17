@@ -2,24 +2,6 @@
 core/generator.py
 ─────────────────────────────────────────────────────────────────────────────
 OpenRouter LLM integration — production-ready, async, RAG-ready.
-
-Why OpenRouter?
-  • Single endpoint → access to 200+ models (LLaMA, Mistral, Gemma, Claude…)
-  • Free tier available (models marked :free)
-  • Drop-in replacement for any OpenAI-compatible client
-
-RAG-ready design:
-  generate_answer(question, context_docs)
-      ↑ context_docs can be [] for pure LLM mode
-      ↑ or a list of SourceDocument objects from FAISS retrieval
-
-How to get your API key:
-  1. Go to  https://openrouter.ai
-  2. Sign up (free, no credit card for free-tier models)
-  3. Dashboard → Keys → "Create Key"
-  4. Copy the key
-  5. In your project:  cp .env.example .env
-  6. Open .env and set:  OPENROUTER_API_KEY=sk-or-v1-...
 ─────────────────────────────────────────────────────────────────────────────
 """
 from __future__ import annotations
@@ -30,35 +12,34 @@ from typing import Any, List
 
 import httpx
 from dotenv import load_dotenv
-
-from dotenv import load_dotenv
 from pathlib import Path
 
+# Load .env if present locally — on Render this is a no-op (env vars are
+# injected by the platform directly into os.environ before the app starts)
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 logger = logging.getLogger(__name__)
 
-# ── Config (read from environment — never hardcode) ───────────────────────
-
-OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL:   str = os.getenv(
-    "OPENROUTER_MODEL", "meta-llama/llama-3-8b-instruct:free"
-)
+# ── Static config (model, URLs) — these don't need to be secret ──────────
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Shown in OpenRouter dashboard — helps with rate-limit debugging
-APP_SITE_URL  = os.getenv("APP_SITE_URL",  "http://localhost:8000")
-APP_SITE_NAME = os.getenv("APP_SITE_NAME", "shhhhh-semantic-search")
 
-if OPENROUTER_API_KEY:
-    logger.info("OpenRouter ready  →  model: %s", OPENROUTER_MODEL)
-else:
-    logger.warning(
-        "OPENROUTER_API_KEY not set. "
-        "Answers will use extractive fallback. "
-        "Get a free key at https://openrouter.ai"
-    )
+def _get_api_key() -> str:
+    """Read key fresh from os.environ every call — never cache at import time."""
+    return os.environ.get("OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY", "")
+
+
+def _get_model() -> str:
+    return os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3-8b-instruct:free")
+
+
+def _get_site_url() -> str:
+    return os.getenv("APP_SITE_URL", "http://localhost:8000")
+
+
+def _get_site_name() -> str:
+    return os.getenv("APP_SITE_NAME", "contexta-semantic-search")
 
 
 # ── Main public function ──────────────────────────────────────────────────
@@ -70,18 +51,24 @@ async def generate_answer(question: str, context_docs: List[Any]) -> str:
     Args:
         question:     The user's natural-language question.
         context_docs: List of SourceDocument objects from FAISS retrieval.
-                      Pass [] to use the LLM without RAG context.
 
     Returns:
         Plain text answer string.
     """
-    if not OPENROUTER_API_KEY:
+    api_key = _get_api_key()
+
+    if not api_key:
+        logger.warning(
+            "OPENROUTER_API_KEY not found in environment. "
+            "Check Render → Environment → OPENROUTER_API_KEY is set and redeployed."
+        )
         return _extractive_fallback(question, context_docs)
 
+    logger.info("OpenRouter ready → model: %s", _get_model())
     prompt = _build_prompt(question, context_docs)
 
     try:
-        answer = await _call_openrouter(prompt)
+        answer = await _call_openrouter(prompt, api_key)
         return answer
     except httpx.TimeoutException:
         logger.error("OpenRouter request timed out.")
@@ -91,22 +78,12 @@ async def generate_answer(question: str, context_docs: List[Any]) -> str:
         return _extractive_fallback(question, context_docs)
 
 
-# ── Prompt builder (RAG-aware) ────────────────────────────────────────────
+# ── Prompt builder ────────────────────────────────────────────────────────
 
 def _build_prompt(question: str, context_docs: List[Any]) -> str:
-    """
-    Build the user message.
-
-    With context  → RAG prompt: answer ONLY from provided documents.
-    Without context → open-ended LLM prompt.
-
-    This function is the single place to change prompt strategy — 
-    swap to chain-of-thought, step-back prompting, etc. here.
-    """
     if not context_docs:
-        return question   # pure LLM mode, no RAG
+        return question
 
-    # Build numbered context blocks from retrieved docs
     blocks: list[str] = []
     for i, doc in enumerate(context_docs, 1):
         title   = getattr(doc, "title",   f"Document {i}")
@@ -127,25 +104,18 @@ def _build_prompt(question: str, context_docs: List[Any]) -> str:
     )
 
 
-# ── OpenRouter API call (async, httpx) ────────────────────────────────────
+# ── OpenRouter API call ───────────────────────────────────────────────────
 
-async def _call_openrouter(user_message: str) -> str:
-    """
-    Send a single-turn chat request to OpenRouter and return clean text.
-
-    Uses httpx.AsyncClient so this is non-blocking inside FastAPI's
-    async event loop — no thread-pool overhead.
-    """
+async def _call_openrouter(user_message: str, api_key: str) -> str:
     headers = {
-        "Authorization":  f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type":   "application/json",
-        # Optional but recommended by OpenRouter for analytics
-        "HTTP-Referer":   APP_SITE_URL,
-        "X-Title":        APP_SITE_NAME,
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type":  "application/json",
+        "HTTP-Referer":  _get_site_url(),
+        "X-Title":       _get_site_name(),
     }
 
     payload = {
-        "model": OPENROUTER_MODEL,
+        "model": _get_model(),
         "messages": [
             {
                 "role":    "system",
@@ -159,19 +129,16 @@ async def _call_openrouter(user_message: str) -> str:
                 "content": user_message,
             },
         ],
-        "temperature": 0.2,          # low = factual, deterministic
+        "temperature": 0.2,
         "max_tokens":  1024,
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(OPENROUTER_URL, json=payload, headers=headers)
-        response.raise_for_status()   # raises HTTPStatusError on 4xx/5xx
+        response.raise_for_status()
 
     data = response.json()
 
-    # ── Parse response ────────────────────────────────────────────────
-    # OpenRouter follows OpenAI schema:
-    # data["choices"][0]["message"]["content"]
     try:
         return data["choices"][0]["message"]["content"].strip()
     except (KeyError, IndexError) as exc:
@@ -179,13 +146,9 @@ async def _call_openrouter(user_message: str) -> str:
         raise ValueError(f"Could not parse OpenRouter response: {exc}") from exc
 
 
-# ── Extractive fallback (no API key / API down) ───────────────────────────
+# ── Extractive fallback ───────────────────────────────────────────────────
 
 def _extractive_fallback(question: str, docs: List[Any]) -> str:
-    """
-    Returns a simple snippet from the top-ranked document.
-    Used when OpenRouter is unavailable — keeps the API functional.
-    """
     if not docs:
         return "No relevant documents found for your question."
     top     = docs[0]
