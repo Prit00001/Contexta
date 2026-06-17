@@ -1,95 +1,96 @@
 <div align="center">
 
-# Contexta 🔍
+# 🔍 Contexta
 
-**Semantic search with grounded AI answers**
+**Semantic search engine with grounded AI answers**
 
-`FAISS` · `Sentence Transformers` · `arXiv` · `FastAPI` · `OpenRouter`
+`FAISS` · `sentence-transformers` · `arXiv` · `FastAPI` · `OpenRouter`
 
-> ⚠️ **Deployment Notice** — See the [Known Limitations](#known-limitations) section before trying the live demo.
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![FAISS](https://img.shields.io/badge/FAISS-Vector_Search-blue?style=flat)](https://github.com/facebookresearch/faiss)
 
 </div>
 
 ---
 
-## What is Contexta?
+## ⚠️ Deployment Status
 
-Contexta is a **RAG (Retrieval-Augmented Generation)** search engine built for research. Ask a question in plain English — it semantically retrieves the most relevant documents from a local knowledge base and live arXiv papers, then passes them to an LLM to generate a grounded, cited answer.
+> **Works perfectly on local machine. Cloud deployment has a known limitation.**
 
-No hallucinations. Every answer is backed by real sources.
+Contexta is **fully functional when run locally**. The cloud-deployed version (Render) hits a wall with the **free-tier AI API** — OpenRouter's free models (`llama-3-8b-instruct:free`) are rate-limited and often return errors under sustained usage on shared hosting.
+
+**The tradeoff I hit:**
+
+| Option | Problem |
+|--------|---------|
+| OpenRouter free tier | Rate limits break the deployed version |
+| Paid API key | Costs money — not feasible for a free demo |
+| Ollama (local LLM) | Works great locally, but if my laptop is off, the server dies with it |
+
+**Bottom line:** The search and retrieval pipeline works end-to-end. The bottleneck is purely the AI generation step on free-tier cloud infrastructure. If you run it locally with your own OpenRouter key, it works flawlessly.
 
 ---
 
-## How It Works
+## What it does
+
+You ask a question in plain English. Contexta:
+
+1. Embeds your query using `all-MiniLM-L6-v2`
+2. Searches a local FAISS index of ML/NLP documents
+3. Fetches live relevant papers from arXiv
+4. Merges and re-ranks results
+5. Sends top sources to an LLM to generate a grounded, cited answer
 
 ```
-Your Question
-      │
-      ▼
-  Embed (all-MiniLM-L6-v2)
-      │
-      ├──▶ FAISS local index ──────────┐
-      │                                │
-      └──▶ arXiv live search ──────────┤
-                                       │
-                                  Merge + Re-rank
-                                       │
-                                       ▼
-                              OpenRouter → LLaMA-3
-                                       │
-                                       ▼
-                          Grounded answer + cited sources
+Question
+   │
+   ▼
+Embed (all-MiniLM-L6-v2)
+   │
+   ├──▶ FAISS local index ──────────────┐
+   │                                    │
+   └──▶ arXiv live search → embed ──────┤
+                                        │
+                                   Merge + re-rank
+                                        │
+                                        ▼
+                              OpenRouter (LLaMA-3-8B)
+                                        │
+                                        ▼
+                           Grounded answer + sources
 ```
 
 ---
 
-## Tech Stack
+## Screenshots
 
-| Layer        | Technology                                   |
-|--------------|----------------------------------------------|
-| API          | FastAPI + uvicorn                            |
-| Embeddings   | `all-MiniLM-L6-v2` (sentence-transformers)   |
-| Vector Store | FAISS `IndexFlatIP` (exact cosine search)    |
-| Live Papers  | arXiv API                                    |
-| LLM          | OpenRouter → LLaMA-3-8B (free tier)          |
-| Frontend     | Vanilla HTML/CSS/JS                          |
+**Search Interface**
 
----
+![Contexta Search UI](assets/screenshot1.png)
 
-## ⚠️ Known Limitations
+**Results with Sources**
 
-### Deployment Status
-
-**Contexta is fully functional locally. The live deployed version has a known issue.**
-
-The app is deployed on Render, but the **AI answer generation is currently broken in the deployed environment** due to OpenRouter's free-tier API restrictions:
-
-- Free-tier models on OpenRouter often get **rate-limited or blocked** when requests come from cloud server IPs (Render, Railway, Heroku, etc.)
-- This means the retrieval pipeline works fine, but the final LLM answer generation fails in production
-- Switching to a **paid OpenRouter model** would fix this immediately
-
-### Why Not Ollama?
-
-An alternative was considered — running a local model via **Ollama** instead of the OpenRouter API. This works perfectly on a local machine, but has an obvious catch:
-
-> If the laptop running Ollama is turned off, the entire deployed app stops working.
-
-That's not a real deployment. So Ollama is not used in the hosted version.
-
-### What Works Right Now
-
-| Feature | Local | Deployed |
-|---------|-------|----------|
-| Semantic search (FAISS) | ✅ | ✅ |
-| arXiv live paper fetch | ✅ | ✅ |
-| AI answer generation | ✅ | ❌ (API limit) |
-| Source citations | ✅ | ✅ |
+![Contexta Results](assets/screenshot2.png)
 
 ---
 
-## Run It Locally (Fully Works)
+## Stack
 
-### 1. Clone and install
+| Layer | Technology |
+|-------|------------|
+| API | FastAPI + uvicorn |
+| Embeddings | `all-MiniLM-L6-v2` (sentence-transformers) |
+| Vector store | FAISS `IndexFlatIP` (exact cosine search) |
+| Live papers | arXiv API |
+| LLM | OpenRouter → LLaMA-3-8B (free tier) |
+| Frontend | Vanilla HTML/CSS/JS |
+
+---
+
+## Run Locally
+
+### 1. Clone & install
 
 ```bash
 git clone https://github.com/Prit00001/Contexta.git
@@ -99,13 +100,13 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Set up environment
+### 2. Set up your API key
 
 ```bash
 cp .env.example .env
 ```
 
-Add your OpenRouter key to `.env`:
+Open `.env` and add your key:
 
 ```
 OPENROUTER_API_KEY=sk-or-v1-...
@@ -119,11 +120,11 @@ Get a free key at [openrouter.ai](https://openrouter.ai) — no credit card need
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000) — the search UI will be running.
+Open [http://localhost:8000](http://localhost:8000) — you should see the search UI.
 
 ---
 
-## API Reference
+## API
 
 ### `POST /ask`
 
@@ -136,6 +137,7 @@ Open [http://localhost:8000](http://localhost:8000) — the search UI will be ru
 ```
 
 **Response:**
+
 ```json
 {
   "question": "...",
@@ -144,7 +146,6 @@ Open [http://localhost:8000](http://localhost:8000) — the search UI will be ru
     {
       "id": "doc_001",
       "title": "Transformer Architecture",
-      "content": "...",
       "source": "local",
       "url": "https://arxiv.org/abs/1706.03762",
       "score": 0.8731
@@ -166,7 +167,7 @@ Open [http://localhost:8000](http://localhost:8000) — the search UI will be ru
 }
 ```
 
-Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+Interactive docs at [/docs](http://localhost:8000/docs).
 
 ---
 
@@ -184,21 +185,30 @@ Contexta/
 │   ├── embeddings.py    # sentence-transformers wrapper
 │   ├── vector_store.py  # FAISS IndexFlatIP wrapper
 │   ├── retriever.py     # query → embedding → FAISS → sources
-│   └── generator.py     # OpenRouter LLM call + RAG prompt
+│   └── generator.py     # OpenRouter async LLM call + RAG prompt
 ├── services/
 │   ├── search_service.py  # full pipeline orchestration
 │   └── arxiv_client.py    # async arXiv fetch + XML parse
 ├── data/
-│   └── documents.py       # local knowledge base (12 ML/NLP docs)
-├── .env.example
+│   └── documents.py       # local ML/NLP knowledge base (12 docs)
 └── requirements.txt
 ```
 
 ---
 
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENROUTER_API_KEY` | ✅ | — | Your OpenRouter API key |
+| `OPENROUTER_MODEL` | ❌ | `meta-llama/llama-3-8b-instruct:free` | Any model from openrouter.ai/models |
+| `APP_SITE_URL` | ❌ | `http://localhost:8000` | Shown in OpenRouter dashboard |
+
+---
+
 ## Extending the Knowledge Base
 
-Add entries to `data/documents.py` — they are embedded and indexed automatically on startup:
+Add entries to `data/documents.py` — they get embedded and indexed automatically on startup:
 
 ```python
 {
@@ -206,29 +216,18 @@ Add entries to `data/documents.py` — they are embedded and indexed automatical
     "source":  "local",
     "title":   "Your Document Title",
     "url":     "https://source-url.com",
-    "content": "Text content to embed and retrieve...",
-}
+    "content": "The text to embed and retrieve...",
+},
 ```
 
 ---
 
-## Environment Variables
+## Known Issues / Roadmap
 
-| Variable             | Required | Default                               | Description                          |
-|----------------------|----------|---------------------------------------|--------------------------------------|
-| `OPENROUTER_API_KEY` | Yes      | —                                     | Your OpenRouter API key              |
-| `OPENROUTER_MODEL`   | No       | `meta-llama/llama-3-8b-instruct:free` | Any model on openrouter.ai/models    |
-| `APP_SITE_URL`       | No       | `http://localhost:8000`               | Shown in OpenRouter dashboard        |
-| `APP_SITE_NAME`      | No       | `contexta`                            | Shown in OpenRouter dashboard        |
-
----
-
-## Roadmap
-
-- [ ] Fix production deployment — switch to a paid OpenRouter model or find a free-tier alternative that works from server IPs
-- [ ] Add support for user-uploaded PDFs to the knowledge base
-- [ ] Persistent vector store (save/load FAISS index)
-- [ ] Chat history / multi-turn conversations
+- [ ] **Free API rate limits** — looking into a paid tier or self-hosted LLM solution that doesn't depend on my laptop being on
+- [ ] Add support for uploading custom PDF documents
+- [ ] Persistent vector store (currently re-indexes on every startup)
+- [ ] Better re-ranking (cross-encoder)
 
 ---
 
