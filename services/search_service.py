@@ -1,6 +1,5 @@
 """
 services/search_service.py — Top-level orchestrator.
-
 Pipeline per request:
   1. (optional) fetch arXiv → embed → temp FAISS
   2. retrieve from permanent local FAISS
@@ -10,10 +9,11 @@ Pipeline per request:
 """
 from __future__ import annotations
 import logging
+import os
 from typing import List
 from app.schemas import AskResponse, SourceDocument
 from core.embeddings import get_embeddings_batch, EMBEDDING_MODEL
-from core.generator import generate_answer, OPENROUTER_MODEL
+from core.generator import generate_answer
 from core.retriever import Retriever
 from core.vector_store import VectorStore
 from data.documents import SAMPLE_DOCUMENTS
@@ -30,13 +30,14 @@ class SearchService:
 
     # ── startup ───────────────────────────────────────────────────────
     def load_local_documents(self) -> None:
+        model = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3-8b-instruct:free")
         logger.info("Embedding %d local documents…", len(SAMPLE_DOCUMENTS))
         texts      = [d["content"] for d in SAMPLE_DOCUMENTS]
         embeddings = get_embeddings_batch(texts)
         self._store.add_documents(SAMPLE_DOCUMENTS, embeddings)
         self._ready = True
         logger.info("SearchService ready  |  FAISS size: %d  |  LLM: %s",
-                    self._store.size, OPENROUTER_MODEL)
+                    self._store.size, model)
 
     # ── request ───────────────────────────────────────────────────────
     async def ask(self, question: str, top_k: int = 5, use_arxiv: bool = True) -> AskResponse:
@@ -52,7 +53,7 @@ class SearchService:
         local_docs = self._retriever.retrieve(question, top_k=top_k)
 
         # 3. merge → de-dup → re-rank
-        seen:   set               = set()
+        seen:   set                  = set()
         merged: List[SourceDocument] = []
         for doc in arxiv_docs + local_docs:
             if doc.id not in seen:
@@ -69,7 +70,7 @@ class SearchService:
             answer        = answer,
             sources       = top_docs,
             total_sources = len(top_docs),
-            model_used    = OPENROUTER_MODEL,
+            model_used    = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3-8b-instruct:free"),
         )
 
     async def _arxiv_retrieve(self, query: str, top_k: int = 3) -> List[SourceDocument]:
