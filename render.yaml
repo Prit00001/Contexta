@@ -2,6 +2,7 @@ services:
   - type: web
     name: contexta
     runtime: python
+    plan: free
     buildCommand: pip install -r requirements.txt && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -9,3 +10,7 @@ services:
         sync: false
       - key: OPENROUTER_MODEL
         value: meta-llama/llama-3-8b-instruct:free
+      - key: APP_SITE_URL
+        value: https://contexta.onrender.com
+      - key: APP_SITE_NAME
+        value: Contexta
