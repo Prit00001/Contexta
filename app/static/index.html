@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contexta · Ask the ML literature</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --ink:#121826; --muted:#5b6578; --line:#d9dfe8;
+  --cobalt:#2c4bdb; --cobalt-soft:#e3e8fd; --kb:#0e7c86; --arxiv:#b4411f; --warn-bg:#fff4dc; --warn-ink:#6b4a00;
+  --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e1320; --surface:#151b2b; --ink:#e7ebf5; --muted:#9aa5bd; --line:#26304a;
+  --cobalt:#8ea2ff; --cobalt-soft:#222c52; --kb:#4cc3cc; --arxiv:#ff8a62; --warn-bg:#3a2e10; --warn-ink:#f3d58a;
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--sans)}
+.wrap{max-width:760px;margin:0 auto;padding:clamp(20px,5vw,56px) 20px 64px}
+h1{font-size:clamp(34px,6vw,52px);line-height:1.05;letter-spacing:-.03em;margin:0 0 10px;font-weight:700}
+.lede{color:var(--muted);margin:0 0 28px;max-width:52ch}
+:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px;border-radius:6px}
+
+.ask{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px}
+.ask textarea{width:100%;border:0;background:transparent;color:var(--ink);font:inherit;font-size:18px;resize:none;padding:12px 12px 4px;min-height:56px}
+.ask textarea:focus{outline:none}
+.ask:focus-within{border-color:var(--cobalt);box-shadow:0 0 0 3px var(--cobalt-soft)}
+.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:6px 8px 8px}
+.bar label{font-size:14px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.bar select{font:inherit;font-size:14px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.go{margin-left:auto;font:inherit;font-weight:600;background:var(--cobalt);color:#fff;border:0;border-radius:9px;padding:9px 18px;cursor:pointer}
+@media (prefers-color-scheme:dark){.go{color:#0e1320}}
+.go:disabled{opacity:.55;cursor:progress}
+
+.examples{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0}
+.examples button{font:inherit;font-size:14px;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
+.examples button:hover{border-color:var(--cobalt);color:var(--cobalt)}
+
+#out{margin-top:36px}
+.note{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:10px 14px;font-size:14px;margin:0 0 16px}
+.status{font-size:13px;color:var(--muted);margin:0 0 10px}
+.answer{font:400 19px/1.65 var(--serif);max-width:66ch;margin:0 0 8px}
+.answer p{margin:0 0 1em}
+.cite{font:600 12px var(--sans);color:var(--cobalt);background:var(--cobalt-soft);border:0;border-radius:5px;padding:1px 6px;margin:0 1px;cursor:pointer;vertical-align:.12em}
+.cite:hover{filter:brightness(.95)}
+
+h2{font-size:15px;font-weight:600;margin:36px 0 12px}
+.srcs{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.src{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--kb);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:28px 1fr;gap:4px 8px;transition:box-shadow .2s,border-color .2s}
+.src.arxiv{border-left-color:var(--arxiv)}
+.src.flash{box-shadow:0 0 0 3px var(--cobalt-soft);border-color:var(--cobalt)}
+.src .n{grid-row:span 3;font-weight:700;color:var(--muted)}
+.src a{color:var(--ink);font-weight:600;text-decoration:none}
+.src a:hover{text-decoration:underline;color:var(--cobalt)}
+.src .meta{font-size:13px;color:var(--muted)}
+.src .snip{font-size:14px;color:var(--ink);opacity:.85;margin:0}
+
+.skel{height:14px;border-radius:7px;background:linear-gradient(90deg,var(--line),transparent,var(--line));background-size:200% 100%;animation:sh 1.3s linear infinite;margin:0 0 12px}
+@keyframes sh{to{background-position:-200% 0}}
+.err{color:var(--arxiv);font-weight:500}
+footer{margin-top:56px;font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}.src{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Contexta</h1>
+  <p class="lede">Ask a question about machine learning or NLP. Answers cite papers from a curated library and from live arXiv search.</p>
+
+  <form class="ask" id="form" role="search">
+    <textarea id="q" rows="2" maxlength="500" placeholder="How does retrieval-augmented generation reduce hallucination?" aria-label="Your question" required></textarea>
+    <div class="bar">
+      <label><input type="checkbox" id="arxiv" checked> Include live arXiv</label>
+      <label>Sources <select id="k"><option>3</option><option selected>5</option><option>8</option></select></label>
+      <button class="go" id="go" type="submit">Ask</button>
+    </div>
+  </form>
+
+  <div class="examples" id="examples"></div>
+  <section id="out" aria-live="polite"></section>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const EXAMPLES = [
+  "How does retrieval-augmented generation work?",
+  "What makes LoRA cheaper than full fine-tuning?",
+  "Exact vs approximate nearest neighbor search",
+  "Why does chain-of-thought prompting help?"
+];
+$('examples').innerHTML = EXAMPLES.map((e) => `<button type="button">${esc(e)}</button>`).join('');
+$('examples').addEventListener('click', (ev) => {
+  if (ev.target.tagName === 'BUTTON') { $('q').value = ev.target.textContent; $('form').requestSubmit(); }
+});
+$('q').addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); $('form').requestSubmit(); }
+});
+
+function renderAnswer(text) {
+  // escape first, then turn [n] markers into buttons that jump to the matching source
+  return esc(text).split(/\n{2,}/).map((p) =>
+    '<p>' + p.replace(/\[(\d+)\]/g, '<button type="button" class="cite" data-n="$1" aria-label="Jump to source $1">$1</button>') + '</p>'
+  ).join('');
+}
+
+function render(d) {
+  const llm = d.llm_used;
+  const status = llm
+    ? `Answered by ${esc(d.provider)} (${esc(d.model_used)}) in ${(d.timings_ms.total / 1000).toFixed(1)}s${d.cached ? ' · cached' : ''}`
+    : `Built from top sources without an AI model · ${(d.timings_ms.total / 1000).toFixed(1)}s`;
+  const notes = (!llm || d.warnings.some((w) => w.includes('arXiv'))) ? d.warnings.filter((w) => !llm || w.includes('arXiv')) : [];
+  $('out').innerHTML =
+    notes.map((n) => `<p class="note">${esc(n)}</p>`).join('') +
+    `<p class="status">${status}</p>` +
+    `<div class="answer">${renderAnswer(d.answer)}</div>` +
+    (d.sources.length ? `<h2>Sources</h2><ol class="srcs">` + d.sources.map((s, i) => `
+      <li class="src ${s.source === 'arxiv' ? 'arxiv' : ''}" id="src-${i + 1}">
+        <span class="n">${i + 1}</span>
+        <a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>
+        <span class="meta">${s.source === 'arxiv' ? 'Live arXiv' : 'Library'}${s.published ? ' · ' + esc(s.published) : ''}${s.authors.length ? ' · ' + esc(s.authors.join(', ')) : ''} · match ${(s.score * 100).toFixed(0)}%</span>
+        <p class="snip">${esc(s.snippet)}</p>
+      </li>`).join('') + `</ol>` : '');
+}
+
+$('out').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.cite'); if (!b) return;
+  const el = $('src-' + b.dataset.n); if (!el) return;
+  el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400);
+});
+
+$('form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const question = $('q').value.trim(); if (question.length < 3) return;
+  $('go').disabled = true; $('go').textContent = 'Searching…';
+  $('out').innerHTML = '<div class="skel" style="width:90%"></div><div class="skel" style="width:82%"></div><div class="skel" style="width:60%"></div>';
+  try {
+    const r = await fetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, top_k: +$('k').value, use_arxiv: $('arxiv').checked }) });
+    if (r.status === 429) throw new Error('You are asking too quickly. Wait a minute, then try again.');
+    if (!r.ok) throw new Error('The server returned an error (' + r.status + '). Try again in a moment.');
+    render(await r.json());
+  } catch (e) {
+    $('out').innerHTML = `<p class="err">${esc(e.message || 'Could not reach the server. Check your connection and try again.')}</p>`;
+  } finally { $('go').disabled = false; $('go').textContent = 'Ask'; }
+});
+
+fetch('/health').then((r) => r.json()).then((h) => {
+  $('foot').textContent = `${h.index_size} library papers · ${h.llm_providers.length ? 'AI: ' + h.llm_providers.join(' → ') : 'AI model not configured (showing source-based answers)'}`;
+}).catch(() => {});
+</script>
+</body>
+</html>
