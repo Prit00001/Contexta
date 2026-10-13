@@ -52,6 +52,16 @@ class Settings:
     min_score: float
     allowed_origins: tuple[str, ...]
     site_url: str
+    database_url: str
+    storage_backend: str
+    storage_dir: Path
+    storage_bucket: str
+    supabase_url: str
+    supabase_service_key: str
+    max_upload_mb: float
+    supabase_jwt_secret: str
+    redis_url: str
+    workspace_rate_limit_per_min: int
 
 
 def _build_providers() -> tuple[ProviderSpec, ...]:
@@ -114,4 +124,14 @@ def get_settings() -> Settings:
         min_score=_num("MIN_SCORE", 0.2, float),
         allowed_origins=tuple(o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()),
         site_url=os.getenv("APP_SITE_URL", "http://localhost:8000"),
+        database_url=os.getenv("DATABASE_URL", ""),
+        storage_backend=os.getenv("STORAGE_BACKEND", "local"),
+        storage_dir=Path(os.getenv("STORAGE_DIR", ".storage")),
+        storage_bucket=os.getenv("STORAGE_BUCKET", "documents"),
+        supabase_url=os.getenv("SUPABASE_URL", ""),
+        supabase_service_key=os.getenv("SUPABASE_SERVICE_KEY", ""),
+        max_upload_mb=_num("MAX_UPLOAD_MB", 20.0, float),
+        supabase_jwt_secret=os.getenv("SUPABASE_JWT_SECRET", ""),
+        redis_url=os.getenv("REDIS_URL", ""),
+        workspace_rate_limit_per_min=_num("WORKSPACE_RATE_LIMIT_PER_MIN", 60),
     )

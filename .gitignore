@@ -5,3 +5,5 @@ __pycache__/
 .cache/
 .model_cache/
 .pytest_cache/
+.storage/
+.DS_Store

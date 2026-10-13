@@ -12,6 +12,10 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.routes import RateLimiter, router
+from app.routes_admin import router as admin_router
+from app.routes_workspace import router as workspace_router
+from core import db
+from core.rate_limit import make_limiter
 from core.embeddings import Embedder
 from core.generator import Generator
 from core.retriever import Retriever
@@ -38,11 +42,16 @@ async def lifespan(app: FastAPI):
     app.state.embedder, app.state.retriever, app.state.generator = embedder, retriever, generator
     app.state.service = SearchService(s, embedder, retriever, arxiv, generator)
     app.state.limiter = RateLimiter(s.rate_limit_per_min)
+    app.state.db_pool = db.make_pool(s.database_url) if s.database_url else None
+    app.state.workspace_limiter = make_limiter(s.redis_url, s.workspace_rate_limit_per_min)
     logging.getLogger("contexta").info(
-        "Ready: %d docs, LLM providers=%s", retriever.size, generator.provider_names or "none (extractive mode)"
+        "Ready: %d docs, LLM providers=%s, db=%s", retriever.size,
+        generator.provider_names or "none (extractive mode)", "configured" if app.state.db_pool else "not configured",
     )
     yield
     await client.aclose()
+    if app.state.db_pool:
+        app.state.db_pool.closeall()
 
 
 def create_app() -> FastAPI:
@@ -51,6 +60,8 @@ def create_app() -> FastAPI:
         CORSMiddleware, allow_origins=list(get_settings().allowed_origins), allow_methods=["GET", "POST"], allow_headers=["*"]
     )
     app.include_router(router)
+    app.include_router(admin_router)
+    app.include_router(workspace_router)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
     @app.get("/", include_in_schema=False)
