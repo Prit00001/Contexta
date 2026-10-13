@@ -5,6 +5,7 @@ Groq, Gemini, OpenRouter, Ollama or anything else compatible. A provider that ra
 fails is put on a short cooldown and the next one is tried. If all fail, we return an
 extractive answer built from the retrieved passages, so the app never goes down with the LLM.
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,11 +21,34 @@ from core.text import clip, keywords, lexical_score, split_sentences
 log = logging.getLogger("contexta.generator")
 
 SYSTEM_PROMPT = (
-    "You are Contexta, a research assistant for machine learning and NLP. Answer the question "
-    "using ONLY the numbered sources provided. Cite inline right after the claims they support, "
-    "like [1] or [2][3]. If the sources do not contain enough information, say so plainly instead "
-    "of guessing. Be concise: 120-220 words, plain prose, no headings or bullet lists."
+    "You are Contexta, a research assistant. Answer the question using ONLY the numbered sources "
+    "provided (papers or excerpts from a document the user uploaded). Cite inline right after the "
+    "claims they support, like [1] or [2][3]. If the sources do not contain enough information, say "
+    "so plainly instead of guessing. Be concise: 120-220 words, plain prose, no headings or bullet lists."
 )
+
+_MODEL_ENV = {
+    "groq": "GROQ_MODEL",
+    "gemini": "GEMINI_MODEL",
+    "openrouter": "OPENROUTER_MODEL",
+    "custom": "LLM_MODEL",
+}
+
+
+def _label(s: dict) -> str:
+    if s["source"] == "pdf":
+        return f"uploaded PDF, page {s.get('page', '?')}"
+    return "arXiv" if s["source"] == "arxiv" else "knowledge base"
+
+
+def _body(s: dict) -> str:
+    """Passage text without the leading title, so the fallback never quotes a title as a sentence."""
+    text, title = s["text"].strip(), s.get("title", "").strip()
+    if s["source"] == "pdf":
+        return text
+    if title and text.lower().startswith(title.lower()):
+        return text[len(title) :].lstrip(" .:-\n")
+    return text.split(". ", 1)[-1] if s["source"] == "local" else text
 
 
 class LLMError(Exception):
@@ -44,11 +68,14 @@ class GenResult:
 
 def build_messages(question: str, sources: list[dict]) -> list[dict]:
     blocks = [
-        f"[{i}] {s['title']} ({'arXiv' if s['source'] == 'arxiv' else 'knowledge base'})\n{clip(s['text'], 700)}"
+        f"[{i}] {s['title']} ({_label(s)})\n{clip(s['text'], 700)}"
         for i, s in enumerate(sources, 1)
     ]
     user = f"Question: {question}\n\nSources:\n\n" + "\n\n".join(blocks)
-    return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
+    return [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user},
+    ]
 
 
 def extractive_answer(question: str, sources: list[dict]) -> str:
@@ -56,7 +83,9 @@ def extractive_answer(question: str, sources: list[dict]) -> str:
     terms = set(keywords(question, 8))
     parts = []
     for i, s in enumerate(sources[:3], 1):
-        sents = split_sentences(s["text"].split(". ", 1)[-1] if s["source"] == "local" else s["text"])
+        sents = [
+            x for x in split_sentences(_body(s)) if len(x) >= 40
+        ] or split_sentences(_body(s))
         if not sents:
             continue
         best = max(sents, key=lambda x: (lexical_score(terms, x), -len(x)))
@@ -72,7 +101,12 @@ def _retry_after(resp: httpx.Response) -> float:
 
 
 class Generator:
-    def __init__(self, providers: tuple[ProviderSpec, ...], client: httpx.AsyncClient, timeout: float = 25.0):
+    def __init__(
+        self,
+        providers: tuple[ProviderSpec, ...],
+        client: httpx.AsyncClient,
+        timeout: float = 25.0,
+    ):
         self.providers = providers
         self.client = client
         self.timeout = timeout
@@ -86,9 +120,21 @@ class Generator:
         headers = {"Content-Type": "application/json", **p.headers}
         if p.api_key:
             headers["Authorization"] = f"Bearer {p.api_key}"
-        payload = {"model": p.model, "messages": messages, "temperature": 0.2, "max_tokens": 600}
+        # 1024 leaves room for reasoning models (gpt-oss, Gemini 3.x) to think and still answer
+        payload = {
+            "model": p.model,
+            "messages": messages,
+            "temperature": 0.2,
+            "max_tokens": 1024,
+            **p.extra,
+        }
         try:
-            r = await self.client.post(f"{p.base_url}/chat/completions", json=payload, headers=headers, timeout=self.timeout)
+            r = await self.client.post(
+                f"{p.base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=self.timeout,
+            )
         except httpx.TimeoutException:
             raise LLMError("timed out", 30)
         except httpx.HTTPError as exc:
@@ -98,6 +144,11 @@ class Generator:
             raise LLMError("rate limited", min(max(_retry_after(r), 20), 120))
         if r.status_code in (401, 403):
             raise LLMError("API key rejected", 600)
+        if (
+            r.status_code == 404
+        ):  # a config problem, not a capacity one: usually a retired model ID
+            env = _MODEL_ENV.get(p.name, "the model setting")
+            raise LLMError(f"model '{p.model}' not found (HTTP 404); check {env}", 600)
         if r.status_code >= 400:
             raise LLMError(f"HTTP {r.status_code}", 30)
         try:
@@ -126,6 +177,12 @@ class Generator:
                 log.warning("LLM provider %s failed: %s", p.name, exc)
                 continue
             n = len(sources)  # drop hallucinated citation numbers
-            text = re.sub(r"\[(\d+)\]", lambda m: m.group(0) if 1 <= int(m.group(1)) <= n else "", text)
+            text = re.sub(
+                r"\[(\d+)\]",
+                lambda m: m.group(0) if 1 <= int(m.group(1)) <= n else "",
+                text,
+            )
             return GenResult(text, p.name, p.model, True, warnings)
-        return GenResult(extractive_answer(question, sources), "none", "extractive", False, warnings)
+        return GenResult(
+            extractive_answer(question, sources), "none", "extractive", False, warnings
+        )

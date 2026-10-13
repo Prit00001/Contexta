@@ -15,9 +15,9 @@ from app.routes import RateLimiter, router
 from app.routes_admin import router as admin_router
 from app.routes_workspace import router as workspace_router
 from core import db
-from core.rate_limit import make_limiter
 from core.embeddings import Embedder
 from core.generator import Generator
+from core.rate_limit import make_limiter
 from core.retriever import Retriever
 from data.documents import DOCUMENTS
 from services.arxiv_client import ArxivClient
@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Contexta", version="2.0.0", lifespan=lifespan)
     app.add_middleware(
-        CORSMiddleware, allow_origins=list(get_settings().allowed_origins), allow_methods=["GET", "POST"], allow_headers=["*"]
+        CORSMiddleware, allow_origins=list(get_settings().allowed_origins), allow_methods=["GET", "POST", "DELETE"], allow_headers=["*"]
     )
     app.include_router(router)
     app.include_router(admin_router)

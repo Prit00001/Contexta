@@ -1,162 +1,608 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contexta · Ask the ML literature</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#eef1f5; --surface:#ffffff; --ink:#121826; --muted:#5b6578; --line:#d9dfe8;
-  --cobalt:#2c4bdb; --cobalt-soft:#e3e8fd; --kb:#0e7c86; --arxiv:#b4411f; --warn-bg:#fff4dc; --warn-ink:#6b4a00;
-  --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
-}
-@media (prefers-color-scheme:dark){:root{
-  --bg:#0e1320; --surface:#151b2b; --ink:#e7ebf5; --muted:#9aa5bd; --line:#26304a;
-  --cobalt:#8ea2ff; --cobalt-soft:#222c52; --kb:#4cc3cc; --arxiv:#ff8a62; --warn-bg:#3a2e10; --warn-ink:#f3d58a;
-}}
-*{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--sans)}
-.wrap{max-width:760px;margin:0 auto;padding:clamp(20px,5vw,56px) 20px 64px}
-h1{font-size:clamp(34px,6vw,52px);line-height:1.05;letter-spacing:-.03em;margin:0 0 10px;font-weight:700}
-.lede{color:var(--muted);margin:0 0 28px;max-width:52ch}
-:focus-visible{outline:3px solid var(--cobalt);outline-offset:2px;border-radius:6px}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contexta</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='14' cy='14' r='8' fill='none' stroke='%234f46e5' stroke-width='3'/><path d='M20 20l7 7' stroke='%234f46e5' stroke-width='3' stroke-linecap='round'/></svg>">
+  <style>
+    :root {
+      --bg: #fafafa;
+      --field: #ffffff;
+      --ink: #18181b;
+      --muted: #71717a;
+      --faint: #a1a1aa;
+      --line: #e4e4e7;
+      --accent: #4f46e5;
+      --accent-ink: #ffffff;
+      --accent-soft: #eef2ff;
+      --err: #dc2626;
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      color-scheme: light;
+    }
 
-.ask{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px}
-.ask textarea{width:100%;border:0;background:transparent;color:var(--ink);font:inherit;font-size:18px;resize:none;padding:12px 12px 4px;min-height:56px}
-.ask textarea:focus{outline:none}
-.ask:focus-within{border-color:var(--cobalt);box-shadow:0 0 0 3px var(--cobalt-soft)}
-.bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:6px 8px 8px}
-.bar label{font-size:14px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
-.bar select{font:inherit;font-size:14px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
-.go{margin-left:auto;font:inherit;font-weight:600;background:var(--cobalt);color:#fff;border:0;border-radius:9px;padding:9px 18px;cursor:pointer}
-@media (prefers-color-scheme:dark){.go{color:#0e1320}}
-.go:disabled{opacity:.55;cursor:progress}
+    @media (prefers-color-scheme:dark) {
+      :root {
+        --bg: #0c0c0e;
+        --field: #141417;
+        --ink: #ececef;
+        --muted: #a1a1aa;
+        --faint: #63636b;
+        --line: #27272c;
+        --accent: #a5b4fc;
+        --accent-ink: #0c0c0e;
+        --accent-soft: #1e1b3a;
+        --err: #f87171;
+        color-scheme: dark;
+      }
+    }
 
-.examples{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0}
-.examples button{font:inherit;font-size:14px;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
-.examples button:hover{border-color:var(--cobalt);color:var(--cobalt)}
+    * {
+      box-sizing: border-box
+    }
 
-#out{margin-top:36px}
-.note{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:10px 14px;font-size:14px;margin:0 0 16px}
-.status{font-size:13px;color:var(--muted);margin:0 0 10px}
-.answer{font:400 19px/1.65 var(--serif);max-width:66ch;margin:0 0 8px}
-.answer p{margin:0 0 1em}
-.cite{font:600 12px var(--sans);color:var(--cobalt);background:var(--cobalt-soft);border:0;border-radius:5px;padding:1px 6px;margin:0 1px;cursor:pointer;vertical-align:.12em}
-.cite:hover{filter:brightness(.95)}
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 16px/1.6 var(--font);
+      -webkit-font-smoothing: antialiased
+    }
 
-h2{font-size:15px;font-weight:600;margin:36px 0 12px}
-.srcs{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-.src{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--kb);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:28px 1fr;gap:4px 8px;transition:box-shadow .2s,border-color .2s}
-.src.arxiv{border-left-color:var(--arxiv)}
-.src.flash{box-shadow:0 0 0 3px var(--cobalt-soft);border-color:var(--cobalt)}
-.src .n{grid-row:span 3;font-weight:700;color:var(--muted)}
-.src a{color:var(--ink);font-weight:600;text-decoration:none}
-.src a:hover{text-decoration:underline;color:var(--cobalt)}
-.src .meta{font-size:13px;color:var(--muted)}
-.src .snip{font-size:14px;color:var(--ink);opacity:.85;margin:0}
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: clamp(40px, 12vh, 112px) 16px 64px
+    }
 
-.skel{height:14px;border-radius:7px;background:linear-gradient(90deg,var(--line),transparent,var(--line));background-size:200% 100%;animation:sh 1.3s linear infinite;margin:0 0 12px}
-@keyframes sh{to{background-position:-200% 0}}
-.err{color:var(--arxiv);font-weight:500}
-footer{margin-top:56px;font-size:13px;color:var(--muted)}
-@media (prefers-reduced-motion:reduce){.skel{animation:none}.src{transition:none}}
-</style>
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 6px
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer
+    }
+
+    [hidden] {
+      display: none !important
+    }
+
+    header {
+      margin-bottom: 28px
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -.015em;
+      margin: 0
+    }
+
+    .lede {
+      color: var(--muted);
+      font-size: 15px;
+      margin: 2px 0 0
+    }
+
+    /* composer */
+    .box {
+      background: var(--field);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      transition: border-color .15s
+    }
+
+    .box:focus-within {
+      border-color: var(--accent)
+    }
+
+    .box.drag {
+      border-color: var(--accent);
+      border-style: dashed;
+      background: var(--accent-soft)
+    }
+
+    textarea {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      resize: none;
+      padding: 14px 16px 4px;
+      min-height: 54px;
+      outline: none
+    }
+
+    textarea::placeholder {
+      color: var(--faint)
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px 8px
+    }
+
+    .attach {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      color: var(--muted)
+    }
+
+    .attach:hover {
+      color: var(--ink);
+      background: var(--accent-soft)
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 60%;
+      font-size: 13px;
+      background: var(--accent-soft);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 4px 6px 4px 10px
+    }
+
+    .chip span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    .chip small {
+      color: var(--muted);
+      flex: none
+    }
+
+    .chip button {
+      display: grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      color: var(--muted);
+      flex: none
+    }
+
+    .chip button:hover {
+      color: var(--ink);
+      background: var(--line)
+    }
+
+    .go {
+      margin-left: auto;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-weight: 600;
+      font-size: 14px;
+      border-radius: 9px;
+      padding: 8px 16px
+    }
+
+    .go:disabled {
+      opacity: .5;
+      cursor: progress
+    }
+
+    .opts {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 18px;
+      margin: 10px 4px 0;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .opts label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer
+    }
+
+    .opts input {
+      accent-color: var(--accent);
+      margin: 0
+    }
+
+    .opts select {
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      cursor: pointer
+    }
+
+    .try {
+      margin-left: auto
+    }
+
+    .try button {
+      color: var(--muted);
+      text-decoration: underline;
+      text-decoration-color: var(--line);
+      text-underline-offset: 3px
+    }
+
+    .try button:hover {
+      color: var(--ink);
+      text-decoration-color: currentColor
+    }
+
+    /* result */
+    #out {
+      margin-top: 44px
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--faint);
+      margin: 0 0 12px
+    }
+
+    .answer {
+      font-size: 17px;
+      line-height: 1.7
+    }
+
+    .answer p {
+      margin: 0 0 1em
+    }
+
+    .cite {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 4px;
+      padding: 0 5px;
+      margin: 0 1px;
+      vertical-align: .2em;
+      line-height: 1.5
+    }
+
+    .cite:hover {
+      background: var(--accent);
+      color: var(--accent-ink)
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 0 6px
+    }
+
+    .err {
+      color: var(--err);
+      font-size: 15px;
+      margin: 0
+    }
+
+    h2 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--faint);
+      margin: 40px 0 4px
+    }
+
+    .srcs {
+      list-style: none;
+      margin: 0;
+      padding: 0
+    }
+
+    .src {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 0 8px;
+      padding: 12px 8px;
+      margin: 0 -8px;
+      border-radius: 10px;
+      border-top: 1px solid var(--line);
+      transition: background .3s
+    }
+
+    .src:first-child {
+      border-top: 0
+    }
+
+    .src.flash {
+      background: var(--accent-soft)
+    }
+
+    .src .n {
+      font-size: 13px;
+      color: var(--faint);
+      padding-top: 1px
+    }
+
+    .src .t {
+      font-weight: 500;
+      color: var(--ink);
+      text-decoration: none
+    }
+
+    a.t:hover {
+      color: var(--accent)
+    }
+
+    .src .meta {
+      display: block;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    .src details {
+      margin-top: 4px;
+      font-size: 14px
+    }
+
+    .src summary {
+      cursor: pointer;
+      color: var(--faint);
+      font-size: 13px;
+      list-style: none;
+      width: fit-content
+    }
+
+    .src summary::-webkit-details-marker {
+      display: none
+    }
+
+    .src summary:hover {
+      color: var(--ink)
+    }
+
+    .src details p {
+      margin: 6px 0 0;
+      color: var(--muted)
+    }
+
+    .skel {
+      height: 12px;
+      border-radius: 6px;
+      background: var(--line);
+      margin: 0 0 12px;
+      animation: pulse 1.2s ease-in-out infinite
+    }
+
+    @keyframes pulse {
+      50% {
+        opacity: .4
+      }
+    }
+
+    footer {
+      margin-top: 72px;
+      font-size: 12px;
+      color: var(--faint)
+    }
+
+    @media (max-width:480px) {
+      .try {
+        margin-left: 0;
+        width: 100%
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+      .skel {
+        animation: none
+      }
+
+      .src,
+      .box {
+        transition: none
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
-  <h1>Contexta</h1>
-  <p class="lede">Ask a question about machine learning or NLP. Answers cite papers from a curated library and from live arXiv search.</p>
+  <div class="wrap">
+    <header>
+      <h1>Contexta</h1>
+      <p class="lede">Cited answers from ML/NLP papers, or from a PDF you upload.</p>
+    </header>
 
-  <form class="ask" id="form" role="search">
-    <textarea id="q" rows="2" maxlength="500" placeholder="How does retrieval-augmented generation reduce hallucination?" aria-label="Your question" required></textarea>
-    <div class="bar">
-      <label><input type="checkbox" id="arxiv" checked> Include live arXiv</label>
-      <label>Sources <select id="k"><option>3</option><option selected>5</option><option>8</option></select></label>
-      <button class="go" id="go" type="submit">Ask</button>
-    </div>
-  </form>
+    <form id="form">
+      <div class="box" id="box">
+        <textarea id="q" rows="2" maxlength="500" placeholder="Ask about machine learning or NLP…"
+          aria-label="Your question" required></textarea>
+        <div class="row">
+          <button type="button" class="attach" id="attach" aria-label="Attach a PDF" title="Attach a PDF (max 4 MB)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path
+                d="m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5" />
+            </svg>
+          </button>
+          <input type="file" id="file" accept="application/pdf,.pdf" hidden>
+          <span class="chip" id="chip" hidden>
+            <span id="chip-name"></span><small id="chip-size"></small>
+            <button type="button" id="chip-x" aria-label="Remove PDF">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </span>
+          <button class="go" id="go" type="submit">Ask</button>
+        </div>
+      </div>
+      <div class="opts">
+        <label id="arxiv-opt"><input type="checkbox" id="arxiv" checked> Live arXiv</label>
+        <label>Sources <select id="k">
+            <option>3</option>
+            <option selected>5</option>
+            <option>8</option>
+          </select></label>
+        <span class="try" id="examples">Try
+          <button type="button">how RAG works</button> ·
+          <button type="button">why LoRA is cheap</button>
+        </span>
+      </div>
+    </form>
 
-  <div class="examples" id="examples"></div>
-  <section id="out" aria-live="polite"></section>
-  <footer id="foot"></footer>
-</div>
+    <section id="out" aria-live="polite"></section>
+    <footer id="foot"></footer>
+  </div>
 
-<script>
-const $ = (id) => document.getElementById(id);
-const esc = (s) => s.replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const MAX_PDF = 4 * 1024 * 1024;
+    const EXAMPLES = {
+      'how RAG works': 'How does retrieval-augmented generation work?',
+      'why LoRA is cheap': 'What makes LoRA cheaper than full fine-tuning?',
+    };
+    let pdf = null;
 
-const EXAMPLES = [
-  "How does retrieval-augmented generation work?",
-  "What makes LoRA cheaper than full fine-tuning?",
-  "Exact vs approximate nearest neighbor search",
-  "Why does chain-of-thought prompting help?"
-];
-$('examples').innerHTML = EXAMPLES.map((e) => `<button type="button">${esc(e)}</button>`).join('');
-$('examples').addEventListener('click', (ev) => {
-  if (ev.target.tagName === 'BUTTON') { $('q').value = ev.target.textContent; $('form').requestSubmit(); }
-});
-$('q').addEventListener('keydown', (ev) => {
-  if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); $('form').requestSubmit(); }
-});
+    /* ---------- PDF attach ---------- */
+    const fmtSize = (b) => b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
 
-function renderAnswer(text) {
-  // escape first, then turn [n] markers into buttons that jump to the matching source
-  return esc(text).split(/\n{2,}/).map((p) =>
-    '<p>' + p.replace(/\[(\d+)\]/g, '<button type="button" class="cite" data-n="$1" aria-label="Jump to source $1">$1</button>') + '</p>'
-  ).join('');
-}
+    function setPdf(f) {
+      if (f) {
+        const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+        if (!isPdf) return showError('Only PDF files are supported.');
+        if (f.size > MAX_PDF) return showError(`That PDF is ${fmtSize(f.size)}. The limit is 4 MB.`);
+      }
+      pdf = f || null;
+      $('chip').hidden = !pdf;
+      $('attach').hidden = !!pdf;
+      $('arxiv-opt').hidden = !!pdf;
+      $('examples').hidden = !!pdf;
+      if (pdf) { $('chip-name').textContent = pdf.name; $('chip-size').textContent = fmtSize(pdf.size); }
+      $('q').placeholder = pdf ? 'Ask about this PDF…' : 'Ask about machine learning or NLP…';
+      $('file').value = '';
+      $('q').focus();
+    }
+    $('attach').onclick = () => $('file').click();
+    $('file').onchange = (e) => setPdf(e.target.files[0]);
+    $('chip-x').onclick = () => setPdf(null);
 
-function render(d) {
-  const llm = d.llm_used;
-  const status = llm
-    ? `Answered by ${esc(d.provider)} (${esc(d.model_used)}) in ${(d.timings_ms.total / 1000).toFixed(1)}s${d.cached ? ' · cached' : ''}`
-    : `Built from top sources without an AI model · ${(d.timings_ms.total / 1000).toFixed(1)}s`;
-  const notes = (!llm || d.warnings.some((w) => w.includes('arXiv'))) ? d.warnings.filter((w) => !llm || w.includes('arXiv')) : [];
-  $('out').innerHTML =
-    notes.map((n) => `<p class="note">${esc(n)}</p>`).join('') +
-    `<p class="status">${status}</p>` +
-    `<div class="answer">${renderAnswer(d.answer)}</div>` +
-    (d.sources.length ? `<h2>Sources</h2><ol class="srcs">` + d.sources.map((s, i) => `
-      <li class="src ${s.source === 'arxiv' ? 'arxiv' : ''}" id="src-${i + 1}">
-        <span class="n">${i + 1}</span>
-        <a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>
-        <span class="meta">${s.source === 'arxiv' ? 'Live arXiv' : 'Library'}${s.published ? ' · ' + esc(s.published) : ''}${s.authors.length ? ' · ' + esc(s.authors.join(', ')) : ''} · match ${(s.score * 100).toFixed(0)}%</span>
-        <p class="snip">${esc(s.snippet)}</p>
-      </li>`).join('') + `</ol>` : '');
-}
+    const box = $('box');
+    ['dragenter', 'dragover'].forEach((t) => box.addEventListener(t, (e) => { e.preventDefault(); box.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach((t) => box.addEventListener(t, (e) => { e.preventDefault(); box.classList.remove('drag'); }));
+    box.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) setPdf(f); });
 
-$('out').addEventListener('click', (ev) => {
-  const b = ev.target.closest('.cite'); if (!b) return;
-  const el = $('src-' + b.dataset.n); if (!el) return;
-  el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
-  el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400);
-});
+    /* ---------- input ---------- */
+    $('examples').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      $('q').value = EXAMPLES[b.textContent] || b.textContent; $('form').requestSubmit();
+    });
+    $('q').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('form').requestSubmit(); }
+    });
 
-$('form').addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-  const question = $('q').value.trim(); if (question.length < 3) return;
-  $('go').disabled = true; $('go').textContent = 'Searching…';
-  $('out').innerHTML = '<div class="skel" style="width:90%"></div><div class="skel" style="width:82%"></div><div class="skel" style="width:60%"></div>';
-  try {
-    const r = await fetch('/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, top_k: +$('k').value, use_arxiv: $('arxiv').checked }) });
-    if (r.status === 429) throw new Error('You are asking too quickly. Wait a minute, then try again.');
-    if (!r.ok) throw new Error('The server returned an error (' + r.status + '). Try again in a moment.');
-    render(await r.json());
-  } catch (e) {
-    $('out').innerHTML = `<p class="err">${esc(e.message || 'Could not reach the server. Check your connection and try again.')}</p>`;
-  } finally { $('go').disabled = false; $('go').textContent = 'Ask'; }
-});
+    /* ---------- rendering ---------- */
+    function showError(msg) { $('out').innerHTML = `<p class="err">${esc(msg)}</p>`; }
 
-fetch('/health').then((r) => r.json()).then((h) => {
-  $('foot').textContent = `${h.index_size} library papers · ${h.llm_providers.length ? 'AI: ' + h.llm_providers.join(' → ') : 'AI model not configured (showing source-based answers)'}`;
-}).catch(() => {});
-</script>
+    function renderAnswer(text) {
+      return esc(text).split(/\n{2,}/).map((p) =>
+        '<p>' + p.replace(/\[(\d+)\]/g, '<button type="button" class="cite" data-n="$1" aria-label="Jump to source $1">$1</button>') + '</p>'
+      ).join('');
+    }
+
+    function sourceMeta(s) {
+      if (s.source === 'pdf') return `Page ${s.page ?? '?'}`;
+      const who = s.authors.length > 2 ? s.authors.slice(0, 2).join(', ') + ' et al.' : s.authors.join(', ');
+      return [s.source === 'arxiv' ? 'arXiv' : 'Library', (s.published || '').slice(0, 4), who].filter(Boolean).join(' · ');
+    }
+
+    function render(d) {
+      (d.diagnostics || []).forEach((m) => console.warn('[contexta]', m));
+      const secs = ((d.timings_ms.total || 0) / 1000).toFixed(1) + 's';
+      const model = (d.model_used || '').split('/').pop();
+      const status = d.cached ? `${model} · cached`
+        : d.llm_used ? `${model} · ${secs}`
+          : `Quoted directly from sources (AI model unavailable) · ${secs}`;
+      const sources = d.sources.map((s, i) => {
+        const title = s.url
+          ? `<a class="t" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>`
+          : `<span class="t">${esc(s.source === 'pdf' ? s.title.replace(/ · p\. \d+$/, '') : s.title)}</span>`;
+        return `<li class="src" id="src-${i + 1}"><span class="n">${i + 1}</span><div>${title}
+      <span class="meta">${esc(sourceMeta(s))}</span>
+      ${s.snippet ? `<details><summary>Excerpt</summary><p>${esc(s.snippet)}</p></details>` : ''}</div></li>`;
+      }).join('');
+      $('out').innerHTML =
+        `<p class="status">${esc(status)}</p>` +
+        `<div class="answer">${renderAnswer(d.answer)}</div>` +
+        (d.warnings || []).map((w) => `<p class="note">${esc(w)}</p>`).join('') +
+        (sources ? `<h2>Sources</h2><ol class="srcs">${sources}</ol>` : '');
+    }
+
+    $('out').addEventListener('click', (e) => {
+      const b = e.target.closest('.cite'); if (!b) return;
+      const el = $('src-' + b.dataset.n); if (!el) return;
+      el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+      el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1200);
+    });
+
+    /* ---------- submit ---------- */
+    async function errorMessage(r) {
+      if (r.status === 429) return 'You are asking too quickly. Wait a minute, then try again.';
+      if (r.status === 413) return 'That PDF is too large. The limit is 4 MB.';
+      try {
+        const body = await r.json();
+        if (typeof body.detail === 'string') return body.detail;
+        if (Array.isArray(body.detail)) return 'Please enter a question between 3 and 500 characters.';
+      } catch (_) { /* non-JSON error page */ }
+      return `Something went wrong (${r.status}). Try again in a moment.`;
+    }
+
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const question = $('q').value.trim(); if (question.length < 3) return;
+      const top_k = +$('k').value;
+      $('go').disabled = true; $('go').textContent = pdf ? 'Reading…' : 'Searching…';
+      $('out').innerHTML = '<div class="skel" style="width:92%"></div><div class="skel" style="width:84%"></div><div class="skel" style="width:58%"></div>';
+      try {
+        let r;
+        if (pdf) {
+          const fd = new FormData();
+          fd.append('question', question); fd.append('top_k', top_k); fd.append('file', pdf);
+          r = await fetch('/ask-pdf', { method: 'POST', body: fd });
+        } else {
+          r = await fetch('/ask', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, top_k, use_arxiv: $('arxiv').checked })
+          });
+        }
+        if (!r.ok) throw new Error(await errorMessage(r));
+        render(await r.json());
+      } catch (err) {
+        showError(err instanceof TypeError ? 'Could not reach the server. Check your connection and try again.' : err.message);
+      } finally { $('go').disabled = false; $('go').textContent = 'Ask'; }
+    });
+
+    fetch('/health').then((r) => r.json()).then((h) => {
+      $('foot').textContent = `${h.index_size} library papers · ` +
+        (h.llm_providers.length ? h.llm_providers.join(' → ') : 'no AI model configured');
+    }).catch(() => { });
+  </script>
 </body>
+
 </html>
