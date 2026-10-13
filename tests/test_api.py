@@ -21,7 +21,7 @@ def test_ask_extractive_when_no_llm():
         assert r.status_code == 200
         assert d["llm_used"] is False and d["model_used"] == "extractive"
         assert d["total_sources"] == 3 and "[1]" in d["answer"]
-        assert any("No AI model" in w for w in d["warnings"])
+        assert any("No AI provider" in w for w in d["diagnostics"])
         assert "RAG" in d["sources"][0]["title"] or "Retrieval" in d["sources"][0]["title"]
 
 
