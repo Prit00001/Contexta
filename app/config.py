@@ -1,4 +1,5 @@
 """Central configuration, read once from environment variables."""
+
 from __future__ import annotations
 
 import os
@@ -33,6 +34,7 @@ class ProviderSpec:
     model: str
     api_key: str = ""
     headers: dict = field(default_factory=dict)
+    extra: dict = field(default_factory=dict)  # extra JSON fields for /chat/completions
 
 
 @dataclass(frozen=True)
@@ -52,21 +54,31 @@ class Settings:
     min_score: float
     allowed_origins: tuple[str, ...]
     site_url: str
+    max_pdf_bytes: int
+    max_pdf_chunks: int
 
 
 def _build_providers() -> tuple[ProviderSpec, ...]:
     site = os.getenv("APP_SITE_URL", "http://localhost:8000")
+    # llama-3.1-8b-instant and gemini-2.5-flash were retired in 2026 and now return 404.
+    groq_model = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
     catalog = {
         "groq": ProviderSpec(
             "groq",
             "https://api.groq.com/openai/v1",
-            os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+            groq_model,
             os.getenv("GROQ_API_KEY", ""),
+            # gpt-oss is a reasoning model; keep reasoning short so it doesn't eat the token budget
+            extra=(
+                {"reasoning_effort": "low"}
+                if groq_model.startswith("openai/gpt-oss")
+                else {}
+            ),
         ),
         "gemini": ProviderSpec(
             "gemini",
             "https://generativelanguage.googleapis.com/v1beta/openai",
-            os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
             os.getenv("GEMINI_API_KEY", ""),
         ),
         "openrouter": ProviderSpec(
@@ -83,14 +95,21 @@ def _build_providers() -> tuple[ProviderSpec, ...]:
             os.getenv("LLM_API_KEY", ""),
         ),
     }
-    order = [p.strip() for p in os.getenv("LLM_PROVIDERS", "groq,gemini,openrouter,custom").split(",")]
+    order = [
+        p.strip()
+        for p in os.getenv("LLM_PROVIDERS", "groq,gemini,openrouter,custom").split(",")
+    ]
     out = []
     for name in order:
         spec = catalog.get(name)
         if not spec:
             continue
         # custom endpoints (e.g. Ollama) may not need a key, but need URL + model
-        ready = bool(spec.base_url and spec.model) if name == "custom" else bool(spec.api_key)
+        ready = (
+            bool(spec.base_url and spec.model)
+            if name == "custom"
+            else bool(spec.api_key)
+        )
         if ready:
             out.append(spec)
     return tuple(out)
@@ -101,7 +120,12 @@ def get_settings() -> Settings:
     return Settings(
         embed_backend=os.getenv("EMBED_BACKEND", "fastembed"),
         embed_model=os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
-        cache_dir=Path(os.getenv("CACHE_DIR", ".cache")),
+        # Vercel's filesystem is read-only except /tmp (Vercel sets VERCEL=1 at runtime)
+        cache_dir=Path(
+            os.getenv(
+                "CACHE_DIR", "/tmp/contexta-cache" if os.getenv("VERCEL") else ".cache"
+            )
+        ),
         model_cache_dir=os.getenv("FASTEMBED_CACHE_PATH"),
         providers=_build_providers(),
         llm_timeout=_num("LLM_TIMEOUT", 25.0, float),
@@ -112,6 +136,11 @@ def get_settings() -> Settings:
         answer_cache_ttl=_num("ANSWER_CACHE_TTL", 3600),
         rate_limit_per_min=_num("RATE_LIMIT_PER_MIN", 20),
         min_score=_num("MIN_SCORE", 0.2, float),
-        allowed_origins=tuple(o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()),
+        allowed_origins=tuple(
+            o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()
+        ),
         site_url=os.getenv("APP_SITE_URL", "http://localhost:8000"),
+        # Vercel rejects request bodies over ~4.5 MB before they reach the app
+        max_pdf_bytes=int(_num("MAX_PDF_MB", 4.0, float) * 1024 * 1024),
+        max_pdf_chunks=_num("MAX_PDF_CHUNKS", 300),
     )
